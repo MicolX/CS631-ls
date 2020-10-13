@@ -1,15 +1,18 @@
 #include <sys/stat.h>
-#include <sys/stat.h>
+#include <sys/types.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <dirent.h>
 #include <errno.h>
+#include <fts.h>
+#include <grp.h>
+#include <pwd.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <pwd.h>
-#include <grp.h>
+#include <unistd.h>
+
+#include "sort.h"
 
 typedef struct fileinfo_t {
 	char *permission;
@@ -43,4 +46,3 @@ typedef struct options_t {
 	int flag_w;
 } options;
 
-char *getPermission(char*, struct stat);

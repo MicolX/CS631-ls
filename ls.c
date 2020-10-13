@@ -5,19 +5,20 @@
  */
 
 #include "ls.h"
-
+#include "sort.h"
 
 int
 main(int argc, char **argv)
 {
-	DIR *dp;
-	struct dirent *dirp;
 	struct passwd *pswd;
-	struct group *grp;
-	int hasopt;
+	int hasopt = 0;
 	char op;
-
-	options *opt = (options *) calloc(1, sizeof(options));
+	FTSENT *ent;
+	FTS *ftsp;
+	options *opt = (options *) malloc(sizeof(options));
+	int fts_options = FTS_PHYSICAL;
+	int start = 0;
+	int arglen = 0;
 	
 	while ((op = getopt(argc, argv, "AacdFfhiklnqRrSstuw")) != -1) {
 		switch(op) {
@@ -90,6 +91,7 @@ main(int argc, char **argv)
 				if (opt->flag_f == 0) {
 					opt->flag_S = 1;
 				}
+				opt->flag_t = 0;
 				hasopt = 1;
 				break;
 			case 's':
@@ -100,6 +102,7 @@ main(int argc, char **argv)
 				if (opt->flag_f == 0) {
 					opt->flag_t = 1;
 				}
+				opt->flag_S = 0;
 				hasopt = 1;
 				break;
 			case 'u':
@@ -117,78 +120,103 @@ main(int argc, char **argv)
 		}
 	}
 
+	if ((hasopt == 0 && argc == 1) || (hasopt == 1 && argc == 2)) {
+		start = -1;
+	} else if (hasopt == 1 && argc > 2) {
+		start = 2;
+	} else if (hasopt == 0 && argc > 1) {
+		start = 1;
+	}
 	
+	if (start == -1) {
+		arglen = 1;
+	} else {
+		arglen = argc - start;
+	}
 
-	if ((dp = opendir(argv[1])) == NULL) {
-		fprintf(stderr, "Unable to open '%s': %s\n", argv[1], strerror(errno));
+
+	char *operands[arglen+1];
+	if (start == -1) {
+		operands[0] = ".";
+	} else {
+		for (int i = start; i < start + arglen; i++) {
+			operands[i - start] = argv[i];
+		}
+	}
+	operands[arglen] = NULL;
+
+	if (opt->flag_a) {
+		fts_options = fts_options|FTS_SEEDOT;	
+	}
+
+	ftsp = fts_open(operands, fts_options, compar);
+	if (errno != 0) {
+		fprintf(stderr, "Failed to open file: %s\n", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
-
-	while ((dirp = readdir(dp)) != NULL) {
-		struct stat sb;
-		if (stat(dirp->d_name, &sb) == -1) {
-			fprintf(stderr, "Failed to stat: %s\n", strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-
-		if ((pswd = getpwuid(sb.st_uid)) == NULL) {
-			fprintf(stderr, "Unable to get info of this uid: %s\n", strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-
-		if ((grp = getgrgid(sb.st_gid)) == NULL) {
-			fprintf(stderr, "Unable to get info of this gid: %s\n", strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-		char p[10];
-		printf("%s ", getPermission(p,sb));	
-		printf("%d ", sb.st_nlink);
-		((pswd->pw_name != NULL) & (strlen(pswd->pw_name) != 0)) ? printf("%s ", pswd->pw_name) : printf("%u ", sb.st_uid);
-		((grp->gr_name != NULL) & (strlen(grp->gr_name) != 0)) ? printf("%s ", grp->gr_name) : printf("%u ", sb.st_gid);
-		char *date = ctime(&sb.st_mtime);
-		if (date[strlen(date)-1] == '\n') {
-			date[strlen(date)-1] = 0;
-		}
-
-		printf("%s ", date);
-		printf("%s\n", dirp->d_name);
+	
+	if (getuid() == 0) {
+		opt->flag_A = 1;
 	}
 
-	(void)closedir(dp);
+	while ((ent = fts_read(ftsp))) {
+		if (ent->fts_info == FTS_DP) {
+			continue;
+		}
+
+		if (ent->fts_info == FTS_D && ent->fts_level == 0) {
+			if (arglen > 1) {
+				printf("%s:\n", ent->fts_name);
+			}
+			continue;
+		}
+
+		
+
+		if (ent->fts_level < 2) {
+			printf("%s\n", ent->fts_name);
+		}
+	}
+	
+	
+
+	//if ((dp = opendir(argv[1])) == NULL) {
+	//	fprintf(stderr, "Unable to open '%s': %s\n", argv[1], strerror(errno));
+	//	exit(EXIT_FAILURE);
+	//}
+
+	//while ((dirp = readdir(dp)) != NULL) {
+	//	struct stat sb;
+	//	if (stat(dirp->d_name, &sb) == -1) {
+	//		fprintf(stderr, "Failed to stat: %s\n", strerror(errno));
+	//		exit(EXIT_FAILURE);
+	//	}
+
+	//	if ((pswd = getpwuid(sb.st_uid)) == NULL) {
+	//		fprintf(stderr, "Unable to get info of this uid: %s\n", strerror(errno));
+	//		exit(EXIT_FAILURE);
+	//	}
+
+	//	if ((grp = getgrgid(sb.st_gid)) == NULL) {
+	//		fprintf(stderr, "Unable to get info of this gid: %s\n", strerror(errno));
+	//		exit(EXIT_FAILURE);
+	//	}
+	//	char p[10];
+	//	strmode(sb.st_mode, p);
+	//	printf("%s ", p);	
+	//	printf("%d ", sb.st_nlink);
+	//	((pswd->pw_name != NULL) & (strlen(pswd->pw_name) != 0)) ? printf("%s ", pswd->pw_name) : printf("%u ", sb.st_uid);
+	//	((grp->gr_name != NULL) & (strlen(grp->gr_name) != 0)) ? printf("%s ", grp->gr_name) : printf("%u ", sb.st_gid);
+	//	char *date = ctime(&sb.st_mtime);
+	//	if (date[strlen(date)-1] == '\n') {
+	//		date[strlen(date)-1] = 0;
+	//	}
+
+	//	printf("%s ", date);
+	//	printf("%s\n", dirp->d_name);
+	//}
+
+	(void)fts_close(ftsp);
 	return EXIT_SUCCESS;
 }
 
-
-char *
-getPermission(char *perm, struct stat sb) 
-{
-	if (S_ISDIR(sb.st_mode)) {
-		perm[0] = 'd';
-	} else if (S_ISBLK(sb.st_mode)) {
-		perm[0] = 'b';
-	} else if (S_ISCHR(sb.st_mode)) {
-		perm[0] = 'c';
-	} else if (S_ISFIFO(sb.st_mode)) {
-		perm[0] = 'P';
-	} else if (S_ISLNK(sb.st_mode)) {
-		perm[0] = 'l';
-	} else if (S_ISSOCK(sb.st_mode)) {
-		perm[0] = 's';
-	} else {
-		perm[0] = '-';
-	}
-	
-
-	perm[1] = (sb.st_mode & S_IRUSR) ? 'r' : '-';
-	perm[2] = (sb.st_mode & S_IWUSR) ? 'w' : '-';
-	perm[3] = (sb.st_mode & S_IXUSR) ? 'x' : '-';
-	perm[4] = (sb.st_mode & S_IRGRP) ? 'r' : '-';	
-	perm[5] = (sb.st_mode & S_IWGRP) ? 'w' : '-';
-	perm[6] = (sb.st_mode & S_IXGRP) ? 'x' : '-';
-	perm[7] = (sb.st_mode & S_IROTH) ? 'r' : '-';
-	perm[8] = (sb.st_mode & S_IWOTH) ? 'w' : '-';
-	perm[9] = (sb.st_mode & S_IXOTH) ? 'x' : '-';
-		
-
-	return perm;
-}
