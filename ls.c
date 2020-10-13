@@ -178,43 +178,6 @@ main(int argc, char **argv)
 		}
 	}
 	
-	
-
-	//if ((dp = opendir(argv[1])) == NULL) {
-	//	fprintf(stderr, "Unable to open '%s': %s\n", argv[1], strerror(errno));
-	//	exit(EXIT_FAILURE);
-	//}
-
-	//while ((dirp = readdir(dp)) != NULL) {
-	//	struct stat sb;
-	//	if (stat(dirp->d_name, &sb) == -1) {
-	//		fprintf(stderr, "Failed to stat: %s\n", strerror(errno));
-	//		exit(EXIT_FAILURE);
-	//	}
-
-	//	if ((pswd = getpwuid(sb.st_uid)) == NULL) {
-	//		fprintf(stderr, "Unable to get info of this uid: %s\n", strerror(errno));
-	//		exit(EXIT_FAILURE);
-	//	}
-
-	//	if ((grp = getgrgid(sb.st_gid)) == NULL) {
-	//		fprintf(stderr, "Unable to get info of this gid: %s\n", strerror(errno));
-	//		exit(EXIT_FAILURE);
-	//	}
-	//	char p[10];
-	//	strmode(sb.st_mode, p);
-	//	printf("%s ", p);	
-	//	printf("%d ", sb.st_nlink);
-	//	((pswd->pw_name != NULL) & (strlen(pswd->pw_name) != 0)) ? printf("%s ", pswd->pw_name) : printf("%u ", sb.st_uid);
-	//	((grp->gr_name != NULL) & (strlen(grp->gr_name) != 0)) ? printf("%s ", grp->gr_name) : printf("%u ", sb.st_gid);
-	//	char *date = ctime(&sb.st_mtime);
-	//	if (date[strlen(date)-1] == '\n') {
-	//		date[strlen(date)-1] = 0;
-	//	}
-
-	//	printf("%s ", date);
-	//	printf("%s\n", dirp->d_name);
-	//}
 
 	(void)fts_close(ftsp);
 	return EXIT_SUCCESS;
