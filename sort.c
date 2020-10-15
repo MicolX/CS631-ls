@@ -14,3 +14,4 @@ int
 
 	return strcmp((*a)->fts_name, (*b)->fts_name);
 }
+

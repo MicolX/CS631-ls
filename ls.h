@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <fts.h>
 #include <grp.h>
+#include <inttypes.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>

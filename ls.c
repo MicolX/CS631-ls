@@ -10,15 +10,18 @@
 int
 main(int argc, char **argv)
 {
-	struct passwd *pswd;
 	int hasopt = 0;
 	char op;
 	FTSENT *ent;
 	FTS *ftsp;
 	options *opt = (options *) malloc(sizeof(options));
-	int fts_options = FTS_PHYSICAL;
 	int start = 0;
 	int arglen = 0;
+	struct passwd *pw;
+	struct group *grp;
+	char unit[] = {'B', 'K', 'M', 'G', 'T'};
+	struct tm *timeinfo;
+	char timebuff[15];
 	
 	while ((op = getopt(argc, argv, "AacdFfhiklnqRrSstuw")) != -1) {
 		switch(op) {
@@ -145,11 +148,8 @@ main(int argc, char **argv)
 	}
 	operands[arglen] = NULL;
 
-	if (opt->flag_a) {
-		fts_options = fts_options|FTS_SEEDOT;	
-	}
 
-	ftsp = fts_open(operands, fts_options, compar);
+	ftsp = fts_open(operands, FTS_PHYSICAL|FTS_SEEDOT, compar);
 	if (errno != 0) {
 		fprintf(stderr, "Failed to open file: %s\n", strerror(errno));
 		exit(EXIT_FAILURE);
@@ -160,8 +160,22 @@ main(int argc, char **argv)
 	}
 
 	while ((ent = fts_read(ftsp))) {
+		if (errno != 0) {
+			fprintf(stderr, "Failed to read file: %s\n", strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+
 		if (ent->fts_info == FTS_DP) {
 			continue;
+		}
+
+		if (ent->fts_name[0] == '.' && !opt->flag_a) {
+			if (!opt->flag_A) {
+				continue;
+			}
+			if (strncmp(ent->fts_name, ".", strlen(ent->fts_name)) == 0 || strncmp(ent->fts_name, "..", strlen(ent->fts_name)) == 0) {
+				continue;
+			}
 		}
 
 		if (ent->fts_info == FTS_D && ent->fts_level == 0) {
@@ -169,12 +183,71 @@ main(int argc, char **argv)
 				printf("%s:\n", ent->fts_name);
 			}
 			continue;
-		}
-
-		
+		}	
 
 		if (ent->fts_level < 2) {
-			printf("%s\n", ent->fts_name);
+			if (opt->flag_i) {
+				printf("%ju ", (uintmax_t)ent->fts_statp->st_ino);
+			}
+	
+			if (opt->flag_l || opt->flag_n) {
+				char perm[11];
+				strmode(ent->fts_statp->st_mode, perm);
+				printf("%s ", perm);
+				
+				printf ("%ju ", (uintmax_t)ent->fts_statp->st_nlink);
+
+				if (opt->flag_n) {
+					printf("%ju %ju", (uintmax_t)ent->fts_statp->st_uid, (uintmax_t)ent->fts_statp->st_gid);
+				} else {
+					if ((pw = getpwuid(ent->fts_statp->st_uid)) == NULL) {
+						fprintf(stderr, "Failed to get uid: %s\n", strerror(errno));
+						exit(EXIT_FAILURE);
+					}
+
+					if ((grp = getgrgid(ent->fts_statp->st_gid)) == NULL) {
+						fprintf(stderr, "Failed to get gid: %s\n", strerror(errno));
+						exit(EXIT_FAILURE);
+					}
+					printf("%s %s ", pw->pw_name, grp->gr_name);
+				}
+
+				if (opt->flag_h) {
+					double size = ent->fts_statp->st_size;
+					int index = 0;
+					while (size > 1024) {
+						size /= 1024;
+						index++;
+					}
+					if (index > 4) {
+						fprintf(stderr, "A file is too large to print\n");
+						exit(EXIT_FAILURE);
+					}
+					printf("%f%c ", size, unit[index]);
+				} else if (opt->flag_s) {
+					if (opt->flag_k) {
+						printf("%fK", (long long int)ent->fts_statp->st_size / 1024.0);
+					} else {
+						printf("%lld ", (long long int)ent->fts_statp->st_blocks);
+					}
+				} else {
+					printf("%lld ", (long long int)ent->fts_statp->st_size);
+				}
+
+				if (opt->flag_c) {
+					timeinfo = localtime(&(ent->fts_statp->st_ctime));
+				} else if (opt->flag_u) {
+					timeinfo = localtime(&(ent->fts_statp->st_atime));
+				} else {
+					timeinfo = localtime(&(ent->fts_statp->st_mtime));
+				}
+				strftime(timebuff, 15, "%b %d %H:%M", timeinfo);
+				printf("%s ", timebuff);
+
+			}
+
+
+			printf("%s, level: %d\n", ent->fts_name, ent->fts_level);
 		}
 	}
 	
