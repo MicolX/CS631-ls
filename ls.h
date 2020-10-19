@@ -6,6 +6,7 @@
 #include <fts.h>
 #include <grp.h>
 #include <inttypes.h>
+#include <math.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
