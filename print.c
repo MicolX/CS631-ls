@@ -61,6 +61,7 @@ lprint(struct stat *statp, options *opt) {
     strmode(statp->st_mode, perm);
 	printf("%s ", perm);		 
 	printf ("%-2ju ", (uintmax_t)statp->st_nlink);
+	
 	if (opt->flag_n) {	
 		printf("%-5ju %-5ju ", (uintmax_t)statp->st_uid, (uintmax_t)statp->st_gid);
 	} else {
@@ -74,28 +75,34 @@ lprint(struct stat *statp, options *opt) {
 		}
 		printf("%-5s %-5s ", pw->pw_name, grp->gr_name);
 	}
-	if (opt->flag_h) {
-		double size = statp->st_size;
-		int index = 0;
-		while (size > 1024) {
-			size /= 1024;
-			index++;
-		}
-		
-		if (index > 4) {
-			fprintf(stderr, "A file is too large to print\n");
-			exit(EXIT_FAILURE);
-		}
-		printf("%.1f%c ", size, unit[index]);
-		
-	} else if (opt->flag_s) {
-		if (opt->flag_k) {
-			printf("%.1fK", (long long int)statp->st_size / 1024.0);
-		} else {
-			printf("%lld ", (long long int)statp->st_blocks);
-		}
+
+	if (S_ISCHR(statp->st_mode) || S_ISBLK(statp->st_mode)) {
+		printf("%d %d ", major(statp->st_rdev), minor(statp->st_rdev));
 	} else {
-		printf("%5lld ", (long long int)statp->st_size);
+		if (opt->flag_h) {
+			double size = statp->st_size;
+			int index = 0;
+			while (size > 1024) {
+				size /= 1024;
+				index++;
+			}
+			
+			if (index > 4) {
+				fprintf(stderr, "A file is too large to print\n");
+				exit(EXIT_FAILURE);
+			}
+			printf("%.1f%c ", size, unit[index]);
+			
+		} else if (opt->flag_s) {
+			if (opt->flag_k) {
+				printf("%.1fK", (long long int)statp->st_size / 1024.0);
+			} else {
+			//	printf("%lld ", (long long int)statp->st_blocks);
+				printf("%d ", (int)ceil(statp->st_size / getblocksize()));
+			}
+		} else {
+			printf("%5lld ", (long long int)statp->st_size);
+		}
 	}
 
 	if (opt->flag_c) {
@@ -107,4 +114,18 @@ lprint(struct stat *statp, options *opt) {
 	}
 	strftime(timebuff, 15, "%b %d %H:%M", timeinfo);
 	printf("%13s ", timebuff);
+}
+
+int
+getblocksize() {
+	char *res;
+	if ((res = getenv("BLOCKSIZE")) == NULL) {
+		return 512;
+	}
+
+	if (res[0] == '-') {
+		return 512;
+	}
+
+	return atoi(res);
 }

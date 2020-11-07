@@ -153,13 +153,6 @@ main(int argc, char **argv)
 	}
 	operands[arglen] = NULL;
 
-	if ((hasopt == 0 && argc > 2) || (hasopt == 1 && argc > 3)) {
-		qsort((void *)operands, sizeof(operands), sizeof(operands[0]), compar);
-		if (errno) {
-			err(EXIT_FAILURE, "sort");
-		}
-	}
-
 	if (isatty(fileno(stdout)) == 1) {
 		opt->flag_w = 0;
 		opt->flag_q = 1;
@@ -196,13 +189,21 @@ main(int argc, char **argv)
 		}
 	} else {
 		if (opt->flag_r) {
-			ftsp = fts_open(operands, FTS_PHYSICAL|FTS_SEEDOT, alphb_rev);
+			if ((hasopt == 1 && argc > 3) || (hasopt == 0 && argc > 2)) {
+				ftsp = fts_open(operands, FTS_PHYSICAL|FTS_SEEDOT, compar_rev);
+			} else {
+				ftsp = fts_open(operands, FTS_PHYSICAL|FTS_SEEDOT, alphb_rev);
+			}
 		} else {
-			ftsp = fts_open(operands, FTS_PHYSICAL|FTS_SEEDOT, alphb);
+			if ((hasopt == 1 && argc > 3) || (hasopt == 0 && argc > 2)) {
+				ftsp = fts_open(operands, FTS_PHYSICAL|FTS_SEEDOT, compar);
+			} else {
+				ftsp = fts_open(operands, FTS_PHYSICAL|FTS_SEEDOT, alphb);
+			}
 		}
 	}
 
-	if (errno != 0) {
+	if (errno != 0 && errno != ENOTTY) {
 		fprintf(stderr, "Failed to open file: %s\n", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
@@ -211,10 +212,25 @@ main(int argc, char **argv)
 		opt->flag_A = 1;
 	}
 
+	if (opt->flag_d) {
+		for (int i = 0; i < arglen; i++) {
+			printf("%s\n", operands[i]);
+		}
+		(void)fts_close(ftsp);
+		exit(EXIT_SUCCESS);
+	}
+
 	while ((ent = fts_read(ftsp))) {
-		if (errno) {
-			fprintf(stderr, "Failed to read file: %s\n", strerror(errno));
-			exit(EXIT_FAILURE);
+		if (errno && errno != ENOTTY) {
+			if (errno == EACCES) {
+				if (opt->flag_R) {
+					fprintf(stderr, "Failed to read file: %s\n", strerror(errno));
+					exit(EXIT_FAILURE);
+				} else {
+					errno = 0;
+					continue;
+				}
+			}
 		}
 
 		if (ent->fts_info == FTS_DP) {
@@ -250,6 +266,10 @@ main(int argc, char **argv)
 		if (ent->fts_level < 2 || opt->flag_R) {
 			if (opt->flag_i) {
 				printf("%ju ", (uintmax_t)statp->st_ino);
+			}
+
+			if (opt->flag_s) {
+				printf("%d ", (int)ceil(statp->st_size / getblocksize()));
 			}
 	
 			if (opt->flag_l || opt->flag_n) {

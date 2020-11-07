@@ -1,6 +1,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <err.h>
+#include <errno.h>
 #include <fts.h>
 #include <libgen.h>
 #include <stdlib.h>
@@ -11,7 +13,8 @@
 int (alphb) (const FTSENT **, const FTSENT **);
 int (alphb_rev) (const FTSENT **, const FTSENT **);
 
-int (compar) (const void *, const void *);
+int (compar) (const FTSENT **, const FTSENT **);
+int (compar_rev) (const FTSENT **, const FTSENT **);
 
 int (bymtime) (const FTSENT **, const FTSENT **);
 int (bymtime_rev) (const FTSENT **, const FTSENT **);

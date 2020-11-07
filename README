@@ -30,5 +30,14 @@ I believe there are much more problems remained.
 
 -- 11/8/2020 ---
 seperate the code that print for '-l' from ls.c into print.c;
-adjust the sorting method for '-la' which gives the same result as system ls
+adjust the sorting method for '-la' which prints the same order as ls does
+align output for '-l'
 
+-- 11/9/2020 ---
+fix the problem that cause failure when write output to pipe
+implement '-s'
+implement '-d'
+fix the problem which cause the program to fail when encounter files that are
+inaccessible, by ignoring errno when it is EACCE, it's highly inefficient but
+can get the job done.
+now the program will show major/minor for devices
