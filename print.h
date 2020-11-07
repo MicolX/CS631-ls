@@ -9,5 +9,6 @@
 #include <string.h>
 
 
-void printtotal(FTSENT **);
-void printname(FTSENT **);
+void printtotal(char *);
+void printname(char *);
+void lprint(struct stat *, options *);

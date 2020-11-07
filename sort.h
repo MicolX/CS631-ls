@@ -8,8 +8,10 @@
 #include <time.h>
 #include <unistd.h>
 
-int (compar) (const FTSENT **, const FTSENT **);
-int (compar_rev) (const FTSENT **, const FTSENT **);
+int (alphb) (const FTSENT **, const FTSENT **);
+int (alphb_rev) (const FTSENT **, const FTSENT **);
+
+int (compar) (const void *, const void *);
 
 int (bymtime) (const FTSENT **, const FTSENT **);
 int (bymtime_rev) (const FTSENT **, const FTSENT **);

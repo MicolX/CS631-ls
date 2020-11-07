@@ -15,15 +15,14 @@ main(int argc, char **argv)
 	int start = 0;
 	int arglen = 0;
 	char op;
-	char timebuff[15];
-	char unit[] = {'B', 'K', 'M', 'G', 'T'};
 	FTSENT *ent;
 	FTS *ftsp;
-	options *opt = (options *) malloc(sizeof(options));
-	struct passwd *pw;
-	struct group *grp;
-	struct tm *timeinfo;
+	options *opt; 
 	struct stat *statp;
+
+	if ((opt = (options *) malloc(sizeof(options))) == NULL) {
+		err(EXIT_FAILURE, "malloc");
+	}
 	
 	while ((op = getopt(argc, argv, "AacdFfhiklnqRrSstuw")) != -1) {
 		switch(op) {
@@ -42,6 +41,7 @@ main(int argc, char **argv)
 				break;
 			case 'd':
 				opt->flag_d = 1;
+				opt->flag_R = 0;
 				hasopt = 1;
 				break;
 			case 'F':
@@ -83,7 +83,9 @@ main(int argc, char **argv)
 				hasopt = 1;
 				break;
 			case 'R':
-				opt->flag_R = 1;
+				if (opt->flag_d == 0) {
+					opt->flag_R = 1;
+				}
 				hasopt = 1;
 				break;
 			case 'r':
@@ -126,13 +128,6 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (isatty(fileno(stdout)) == 1) {
-		opt->flag_w = 0;
-		opt->flag_q = 1;
-	} else {
-		opt->flag_w = 1;
-		opt->flag_q = 0;
-	}
 
 	if ((hasopt == 0 && argc == 1) || (hasopt == 1 && argc == 2)) {
 		start = -1;
@@ -148,7 +143,6 @@ main(int argc, char **argv)
 		arglen = argc - start;
 	}
 
-
 	char *operands[arglen+1];
 	if (start == -1) {
 		operands[0] = ".";
@@ -158,6 +152,21 @@ main(int argc, char **argv)
 		}
 	}
 	operands[arglen] = NULL;
+
+	if ((hasopt == 0 && argc > 2) || (hasopt == 1 && argc > 3)) {
+		qsort((void *)operands, sizeof(operands), sizeof(operands[0]), compar);
+		if (errno) {
+			err(EXIT_FAILURE, "sort");
+		}
+	}
+
+	if (isatty(fileno(stdout)) == 1) {
+		opt->flag_w = 0;
+		opt->flag_q = 1;
+	} else {
+		opt->flag_w = 1;
+		opt->flag_q = 0;
+	}
 
 	if (opt->flag_t) {
 		if (opt->flag_c) {
@@ -187,12 +196,11 @@ main(int argc, char **argv)
 		}
 	} else {
 		if (opt->flag_r) {
-			ftsp = fts_open(operands, FTS_PHYSICAL|FTS_SEEDOT, compar_rev);
+			ftsp = fts_open(operands, FTS_PHYSICAL|FTS_SEEDOT, alphb_rev);
 		} else {
-			ftsp = fts_open(operands, FTS_PHYSICAL|FTS_SEEDOT, compar);
+			ftsp = fts_open(operands, FTS_PHYSICAL|FTS_SEEDOT, alphb);
 		}
 	}
-
 
 	if (errno != 0) {
 		fprintf(stderr, "Failed to open file: %s\n", strerror(errno));
@@ -232,25 +240,7 @@ main(int argc, char **argv)
 			}
 
 			if (opt->flag_l) {
-				long long int total = 0;
-				FTS *fp;
-				FTSENT *entp;
-				char *path[2] = {ent->fts_path, NULL};
-				fp = fts_open(path, FTS_PHYSICAL|FTS_SEEDOT, NULL); 
-				if (errno) {
-					fprintf(stderr, "Failed to read a directory: %s\n", strerror(errno));
-					exit(EXIT_FAILURE);
-				}
-				while ((entp = fts_read(fp))) {
-					if (entp->fts_level == 1) {
-						total += (long long)entp->fts_statp->st_blocks;
-					}
-				}
-				if (errno) {
-					fprintf(stderr, "Failed to traverse a directory: %s\n", strerror(errno));
-					exit(EXIT_FAILURE);
-				}
-				printf("total %lld\n", total);
+		 		printtotal(ent->fts_path);
 			}
 			continue;
 		}	
@@ -263,63 +253,11 @@ main(int argc, char **argv)
 			}
 	
 			if (opt->flag_l || opt->flag_n) {
-				char perm[11];
-				strmode(statp->st_mode, perm);
-				printf("%s ", perm);
-				
-				printf ("%ju ", (uintmax_t)statp->st_nlink);
-
-				if (opt->flag_n) {
-					printf("%ju %ju ", (uintmax_t)statp->st_uid, (uintmax_t)statp->st_gid);
-				} else {
-					if ((pw = getpwuid(statp->st_uid)) == NULL) {
-						fprintf(stderr, "Failed to get uid: %s\n", strerror(errno));
-						exit(EXIT_FAILURE);
-					}
-
-					if ((grp = getgrgid(statp->st_gid)) == NULL) {
-						fprintf(stderr, "Failed to get gid: %s\n", strerror(errno));
-						exit(EXIT_FAILURE);
-					}
-					printf("%s %s ", pw->pw_name, grp->gr_name);
-				}
-
-				if (opt->flag_h) {
-					double size = statp->st_size;
-					int index = 0;
-					while (size > 1024) {
-						size /= 1024;
-						index++;
-					}
-					if (index > 4) {
-						fprintf(stderr, "A file is too large to print\n");
-						exit(EXIT_FAILURE);
-					}
-					printf("%.1f%c ", size, unit[index]);
-				} else if (opt->flag_s) {
-					if (opt->flag_k) {
-						printf("%.1fK", (long long int)statp->st_size / 1024.0);
-					} else {
-						printf("%lld ", (long long int)statp->st_blocks);
-					}
-				} else {
-					printf("%lld ", (long long int)statp->st_size);
-				}
-
-				if (opt->flag_c) {
-					timeinfo = localtime(&(statp->st_ctime));
-				} else if (opt->flag_u) {
-					timeinfo = localtime(&(statp->st_atime));
-				} else {
-					timeinfo = localtime(&(statp->st_mtime));
-				}
-				strftime(timebuff, 15, "%b %d %H:%M", timeinfo);
-				printf("%s ", timebuff);
-
+				lprint(statp, opt);
 			}
 
 			if (opt->flag_q) {	
-				printname(&ent);
+		 		printname(ent->fts_name);
 			} else if (opt->flag_w) {
 				printf("%s", ent->fts_name);
 			}
@@ -331,7 +269,7 @@ main(int argc, char **argv)
 					printf("|");
 				} else if (S_ISLNK(statp->st_mode)) {
 					printf("@");
-				} else if (S_ISWHT(statp->st_mode)) {
+				} else if (S_ISWHT(statp->st_mode)) {	
 					printf("%%");
 				} else if (S_ISSOCK(statp->st_mode)) {
 					printf("=");
@@ -355,7 +293,7 @@ main(int argc, char **argv)
 		}
 	}
 	
-
+	free(opt);
 	(void)fts_close(ftsp);
 	return EXIT_SUCCESS;
 }

@@ -7,17 +7,28 @@ This program 'ls' lists directory contents.
 
 *** Problems to be solved ***
 
-The -d option is not perfect yet, when you leave a blank or a '.' as an operand, it prints nothing.
+The -d option is not perfect yet, when you leave a blank or a '.' as an 
+operand, it prints nothing.
 
-The 'total #' shown under -l option is questionable. In order to show that number, 
-I iterate the directory inside a while loop and count the st_blocks of each file. There 
-should be a better way to implement this. Also, I haven't tested if the st_blocks is accurate 
-when there is user-defined system variable BLOCKSIZE other than 512Bytes. 
+The 'total #' shown under -l option is questionable. In order to show 
+that number, I iterate the directory inside a while loop and count the 
+st_blocks of each file. There should be a better way to implement this. 
+Also, I haven't tested if the st_blocks is accurate when there is 
+user-defined system variable BLOCKSIZE other than 512Bytes. 
 
 Haven't implemented the -k and -h for 'total #'
 
-In order to show non-direcoty files first than directories when there are more than one operand, I implemented
-a comparator. However, this makes my printing different from the standard ls command when printing a directory
+In order to show non-direcoty files first than directories when there are more 
+than one operand, I implemented a comparator. However, this makes my printing 
+different from the standard ls command when printing a directory
 without any sorting requirement.
 
 I believe there are much more problems remained.
+
+
+*** Updates ***
+
+-- 11/8/2020 ---
+seperate the code that print for '-l' from ls.c into print.c;
+adjust the sorting method for '-la' which gives the same result as system ls
+

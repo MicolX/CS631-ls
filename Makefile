@@ -1,2 +1,7 @@
-ls: ls.c sort.c print.c
-	cc -Wall -Werror -Wextra ls.c sort.c print.c
+objects = ls.c print.c sort.c
+
+ls : $(objects)
+	cc -Wall -Werror -Wextra -o ls $(objects)
+
+clean :
+	rm $(objects)

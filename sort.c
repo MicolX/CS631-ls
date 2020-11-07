@@ -2,24 +2,10 @@
 
 
 int
-(compar)(const FTSENT **a, const FTSENT **b)
+(compar)(const void *p, const void *q)
 {
-	if (strcmp((*a)->fts_name, ".") == 0) {
-		return -1;
-	}
-
-	if (strcmp((*b)->fts_name, ".") == 0) {
-		return 1;
-	}
-
-	if (strcmp((*a)->fts_name, "..") == 0) {
-		return -1;
-	}
-
-	if (strcmp((*b)->fts_name, "..") == 0) {
-		return 1;
-	}
-
+	FTSENT **a = (FTSENT **)p;
+	FTSENT **b = (FTSENT **)q;
 	if (S_ISDIR((*a)->fts_statp->st_mode) && !S_ISDIR((*b)->fts_statp->st_mode)) {
 		return 1;
 	}
@@ -27,11 +13,14 @@ int
 	if (!S_ISDIR((*a)->fts_statp->st_mode) && S_ISDIR((*b)->fts_statp->st_mode)) {
 		return -1;
 	}
-
-	const char* aname = (*a)->fts_name;
-	const char* bname = (*a)->fts_name;
 	
-	return strcmp(aname, bname);
+	return strcmp((*a)->fts_name, (*b)->fts_name);
+}
+
+int
+(alphb)(const FTSENT **a, const FTSENT **b)
+{
+	return strcmp((*a)->fts_name, (*b)->fts_name);
 }
 
 int
@@ -154,6 +143,11 @@ int
 	return compar(a, b);
 }
 
+int
+(alphb_rev)(const FTSENT **a, const FTSENT **b)
+{
+	return -1*strcmp((*a)->fts_name, (*b)->fts_name);
+}
 
 int
 (compar_rev)(const FTSENT **a, const FTSENT **b)

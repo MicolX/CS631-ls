@@ -2,6 +2,7 @@
 #include <sys/types.h>
 
 #include <dirent.h>
+#include <err.h>
 #include <errno.h>
 #include <fts.h>
 #include <grp.h>
@@ -14,17 +15,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "sort.h"
-
-typedef struct fileinfo_t {
-	char *permission;
-	int nlink;
-	char *owner;
-	char *group;
-	int size;
-	char *time;
-	char *name;
-} fileinfo;
 
 typedef struct options_t {
 	int flag_A;
